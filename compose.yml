@@ -1,0 +1,107 @@
+include:
+  - compose.db.yml
+  - compose.service.yml
+
+services:
+  minio:
+    image: minio/minio:latest
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin123
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    volumes:
+      - minio-data:/data
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+
+  minio-init:
+    image: minio/mc:latest
+    environment:
+      MEDIA_BUCKET_SERVICES: auth
+    depends_on:
+      minio:
+        condition: service_healthy
+    entrypoint:
+      - /bin/sh
+      - -ceu
+      - |
+        until mc alias set local http://minio:9000 minioadmin minioadmin123; do
+          echo "Waiting for MinIO to accept client connections..."
+          sleep 2
+        done
+
+        for service in $${MEDIA_BUCKET_SERVICES}; do
+          bucket="$${service}-media"
+          mc mb --ignore-existing "local/$${bucket}"
+
+          if mc anonymous set download "local/$${bucket}"; then
+            echo "MinIO bucket policy set with mc anonymous for $${bucket}."
+          elif mc policy set download "local/$${bucket}"; then
+            echo "MinIO bucket policy set with legacy mc policy download for $${bucket}."
+          elif mc policy set public "local/$${bucket}"; then
+            echo "MinIO bucket policy set with legacy mc policy public for $${bucket}."
+          else
+            echo "Warning: could not set public bucket policy for $${bucket}; continuing because the bucket exists."
+          fi
+
+          mc ls "local/$${bucket}"
+        done
+    restart: "on-failure:3"
+
+  gateway:
+    image: nginx:1.27-alpine
+    command:
+      - /bin/sh
+      - -c
+      - |
+        awk '
+        function title(value, parts, count, idx, word, output) {
+          count = split(value, parts, /[-_]/)
+          output = ""
+          for (idx = 1; idx <= count; idx++) {
+            word = parts[idx]
+            output = output toupper(substr(word, 1, 1)) substr(word, 2)
+            if (idx < count) output = output " "
+          }
+          return output
+        }
+        BEGIN { printf "["; first = 1 }
+        /^[[:space:]]*location[[:space:]]+\/[A-Za-z0-9_-]+\/[[:space:]]*\{/ {
+          service = $2
+          gsub(/^\/|\/$/, "", service)
+          in_location = 1
+          has_proxy = 0
+        }
+        in_location && /proxy_pass/ { has_proxy = 1 }
+        in_location && /^[[:space:]]*\}/ {
+          if (has_proxy && service != "" && service != "media" && service != "minio") {
+            if (!first) printf ","
+            printf "{\"name\":\"%s\",\"href\":\"/%s/docs\"}", title(service), service
+            first = 0
+          }
+          service = ""
+          in_location = 0
+          has_proxy = 0
+        }
+        END { print "]" }
+        ' /etc/nginx/conf.d/*.conf > /tmp/services.json
+        exec nginx -g 'daemon off;'
+    depends_on:
+      - auth-service
+      - minio
+    volumes:
+      - ./gateway/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./gateway/nginx/conf.d:/etc/nginx/conf.d:ro
+      - ./gateway/nginx/snippets:/etc/nginx/snippets:ro
+      - ./templates:/usr/share/nginx/html/templates:ro
+    ports:
+      - "80:80"
+
+volumes:
+  minio-data:

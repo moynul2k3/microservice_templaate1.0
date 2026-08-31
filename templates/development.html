@@ -1,0 +1,531 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>FastAPI Dashboard</title>
+        <link rel="stylesheet" href="./static/style.css">
+        <style>
+            .login-lock-btn {
+                position: absolute !important;
+                z-index: 9999;
+                height: 40px;
+                width: 150px;
+                border-radius: 100px;
+                border: 1px solid #fff5;
+                background: linear-gradient(135deg, #ff4d6e7a, #ff002b9f);
+                color: white;
+                font-weight: bold;
+                font-size: 15px;
+                cursor: pointer;
+                border: 1px solid #fff5;
+                cursor: pointer;
+                transition: all 0.25s ease;
+            }
+            .login-lock-btn:hover {
+                transform: scale(1.05);
+                box-shadow: 0 6px 18px rgba(255, 77, 109, 0.5);
+                background: linear-gradient(135deg, #fa3459, #fc3052);
+            }
+            .login-lock-btn:focus {
+                outline: none;
+            }
+            #logoutBtn {
+                right: 18px;
+            }
+
+            .login-modal {
+                position: fixed !important;
+                inset: 0;
+                display: flex;
+                justify-content: center;
+                align-items: center;
+                background: rgba(3, 10, 26, 0.62);
+                -webkit-backdrop-filter: blur(6px);
+                backdrop-filter: blur(6px);
+                z-index: 9998;
+                opacity: 1;
+                visibility: visible;
+                transition: opacity 0.22s ease, visibility 0.22s ease;
+            }
+
+            .login-close-btn {
+                position: absolute;
+                top: 12px;
+                right: 12px;
+                width: 38px;
+                height: 38px;
+                border-radius: 50%;
+                border: none;
+                cursor: pointer;
+
+                background: linear-gradient(135deg, #fff3, #fff3);
+                backdrop-filter: blur(6px);
+
+                display: flex;
+                align-items: center;
+                justify-content: center;
+
+                transition: all 0.25s ease;
+            }
+
+            /* Create cross lines */
+            .login-close-btn span {
+                position: absolute;
+                width: 18px;
+                height: 2px;
+                background: white;
+                border-radius: 2px;
+                transition: all 0.25s ease;
+            }
+
+            .login-close-btn span:first-child {
+                transform: rotate(45deg);
+            }
+
+            .login-close-btn span:last-child {
+                transform: rotate(-45deg);
+            }
+
+            /* Hover Effect */
+            .login-close-btn:hover {
+                background: linear-gradient(135deg, #ff4d6d, #ff758c);
+                transform: rotate(90deg) scale(1.05);
+                box-shadow: 0 6px 18px rgba(255, 77, 109, 0.5);
+            }
+
+            .login-close-btn:hover span {
+                background: #fff;
+            }
+
+            .login-modal.is-hidden {
+                opacity: 0;
+                visibility: hidden;
+                pointer-events: none;
+            }
+
+            .login-modal-card {
+                width: min(92vw, 430px);
+                border-radius: 16px;
+                padding: 20px;
+                background: linear-gradient(180deg, #fff3, #6b0054c5);
+                border: 1px solid rgba(255, 255, 255, 0.15);
+                box-shadow: 0 20px 46px rgba(0, 0, 0, 0.42);
+                transform: translateY(0) scale(1);
+            }
+
+            .popup-login-form {
+                display: flex;
+                flex-direction: column;
+                gap: 8px;
+                text-align: left;
+                margin-top: 50px;
+            }
+            .popup-login-form input {
+                padding: 10px 12px;
+                border-radius: 8px;
+                border: 1px solid rgba(255, 255, 255, 0.12);
+                background: rgba(255, 255, 255, 0.15);
+                color: #fff;
+            }
+            .popup-login-form .popup-submit-btn {
+                padding: 10px 12px;
+                border-radius: 8px;
+                border: 1px solid rgba(255, 255, 255, 0.12);
+                background: #fff;
+                color: #6b0054c5;
+                font-weight: bold;
+                cursor: pointer;
+                margin-top: 8px;
+            }
+
+            .beat-badge {
+                width: 90px;
+                height: 90px;
+                margin: 20px auto 15px;
+                border-radius: 50%;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+
+                background: radial-gradient(circle at center, #ff4d6d, #6b0054c5);
+                box-shadow: 0 0 25px rgba(255, 77, 109, 0.6);
+
+                animation: pulseGlow 1.8s infinite ease-in-out;
+            }
+
+            .shield-icon {
+                width: 50px;
+                height: 50px;
+                fill: white;
+                stroke: white;
+                stroke-width: 2;
+            }
+
+            .shield-icon .check {
+                fill: none;
+                stroke-linecap: round;
+                stroke-linejoin: round;
+                stroke-dasharray: 10;
+                stroke-dashoffset: 10;
+                animation: drawCheck 2s infinite ease-in-out;
+            }
+
+            @keyframes pulseGlow {
+                0%, 100% {
+                    box-shadow: 0 0 20px rgba(255, 77, 109, 0.5);
+                    transform: scale(1);
+                }
+                50% {
+                    box-shadow: 0 0 45px rgba(255, 77, 109, 0.9);
+                    transform: scale(1.08);
+                }
+            }
+
+            @keyframes drawCheck {
+                0% { stroke-dashoffset: 10; }
+                50% { stroke-dashoffset: 0; }
+                100% { stroke-dashoffset: 10; }
+            }
+
+        </style>
+    </head>
+    <body>
+    <div class="page">
+        <button id="loginLockBtn" class="login-lock-btn" type="button" aria-label="Open login">
+            Log In
+        </button>
+        <button id="logoutBtn" class="login-lock-btn" type="button" aria-label="Log out">
+            Log Out
+        </button>
+
+        <div id="loginModal" class="login-modal is-hidden" aria-hidden="true">
+            <div class="login-modal-card">
+                <button id="closeLoginModal" class="login-close-btn" type="button" aria-label="Close login">
+                    <span></span>
+                    <span></span>
+                </button>
+                <div class="beat-badge" aria-hidden="true">
+                    <svg class="shield-icon" viewBox="0 0 24 24">
+                        <path d="M12 2L4 5v6c0 5 3.5 9.5 8 11 4.5-1.5 8-6 8-11V5l-8-3z"/>
+                        <path class="check" d="M9 12l2 2 4-4"/>
+                    </svg>
+                </div>
+                <!-- <h3>Login</h3> -->
+                <form id="popupLoginForm" class="popup-login-form">
+                    <label for="popupUsername">Username or Email</label>
+                    <input id="popupUsername" name="username" type="text" autocomplete="username" required />
+
+                    <label for="popupPassword">Password</label>
+                    <input id="popupPassword" name="password" type="password" autocomplete="current-password" required />
+
+                    <button class="popup-submit-btn" type="submit">Sign In</button>
+                </form>
+                <p id="popupLoginMsg" class="popup-login-msg"></p>
+            </div>
+        </div>
+
+        <h1>FastAPI Dashboard</h1>
+        <div id="serviceDocsButtons" class="buttons"></div>
+        <!-- Add the background image for parallax -->
+        <img src="https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&w=1920&q=80" class="bg-image" alt="" aria-hidden="true" />        <div id="signature">
+            <p>Developed by : <a href="https://www.moynul.com" target="_blank">Md. Moynul Islam</a></p>
+            <span class="designation">Python Developer</span>
+        </div>
+    </div>
+
+    <script>
+        const serviceDocsButtons = document.getElementById("serviceDocsButtons");
+
+        function renderServiceDocs(services) {
+            serviceDocsButtons.innerHTML = "";
+
+            services.forEach(function (service) {
+                const link = document.createElement("a");
+                const label = document.createElement("span");
+
+                link.className = "btn";
+                link.href = service.href;
+                label.textContent = service.name;
+
+                link.appendChild(label);
+                serviceDocsButtons.appendChild(link);
+            });
+        }
+
+        fetch("/services.json")
+            .then(function (response) {
+                if (!response.ok) {
+                    throw new Error("Could not load services");
+                }
+
+                return response.json();
+            })
+            .then(renderServiceDocs)
+            .catch(function () {
+                renderServiceDocs([]);
+            });
+    </script>
+    
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/12.13.0/firebase-app.js";
+        import { getMessaging, getToken, isSupported, onMessage } from "https://www.gstatic.com/firebasejs/12.13.0/firebase-messaging.js";
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyD_xfQ_jL7UYbpnuxluvX5glmOrp1dziIY",
+            authDomain: "test-v1-fbde6.firebaseapp.com",
+            projectId: "test-v1-fbde6",
+            storageBucket: "test-v1-fbde6.firebasestorage.app",
+            messagingSenderId: "192440466238",
+            appId: "1:192440466238:web:e04aaa2732a500cda5ca6f",
+            measurementId: "G-N9FL2XTCJF"
+        };
+
+        // Generate this from Firebase Console > Project settings > Cloud Messaging > Web Push certificates.
+        const FIREBASE_VAPID_KEY = "BKpXu3zlLLJSBOocBo0Xn9YVY9JZlEl_EEJpCPorO4j85bBntHB_ZLvmQdmsI2PAMFQfMsMkJgVUzVl1DNKbTrY";
+
+        document.addEventListener("DOMContentLoaded", function () {
+            const firebaseApp = initializeApp(firebaseConfig);
+            const pushDeviceIdKey = "push_device_id_v1";
+
+            const bgImage = document.querySelector('.bg-image');
+            let lFollowX = 0, lFollowY = 0, x = 0, y = 0;
+            const friction = 1 / 30;
+
+            const loginLockBtn = document.getElementById('loginLockBtn');
+            const logoutBtn = document.getElementById('logoutBtn');
+            const loginModal = document.getElementById('loginModal');
+            const closeLoginModal = document.getElementById('closeLoginModal');
+            const popupLoginForm = document.getElementById('popupLoginForm');
+            const popupLoginMsg = document.getElementById('popupLoginMsg');
+
+            function getOrCreateDeviceId() {
+                let deviceId = localStorage.getItem(pushDeviceIdKey);
+                if (deviceId) return deviceId;
+                deviceId = (self.crypto && self.crypto.randomUUID) ? self.crypto.randomUUID() : String(Date.now());
+                localStorage.setItem(pushDeviceIdKey, deviceId);
+                return deviceId;
+            }
+
+            async function registerPushTokenAfterAuth() {
+                try {
+                    if (!(await isSupported())) return;
+                    if (Notification.permission === "denied") return;
+                    if (Notification.permission !== "granted") {
+                        const permission = await Notification.requestPermission();
+                        if (permission !== "granted") return;
+                    }
+                    if (FIREBASE_VAPID_KEY.startsWith("REPLACE_WITH_")) return;
+
+                    const registration = await navigator.serviceWorker.register("/static/firebase-messaging-sw.js");
+                    const messaging = getMessaging(firebaseApp);
+                    const token = await getToken(messaging, {
+                        vapidKey: FIREBASE_VAPID_KEY,
+                        serviceWorkerRegistration: registration
+                    });
+
+                    console.log("Push token:", token);
+
+                    if (!token) return;
+
+                    await fetch("/notifications/push/register", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        credentials: "include",
+                        body: JSON.stringify({
+                            token,
+                            device_id: getOrCreateDeviceId(),
+                            platform: "web"
+                        })
+                    });
+                } catch (_) {}
+            }
+
+            async function checkLoggedIn() {
+                try {
+                    const res = await fetch('/auth/swagger-auth-token/', {
+                        method: 'GET',
+                        credentials: 'include'
+                    });
+                    if (!res.ok) return false;
+                    const data = await res.json().catch(() => ({}));
+                    return Boolean(data && data.access_token);
+                } catch (_) {
+                    return false;
+                }
+            }
+
+            async function bindForegroundPushPreview() {
+                try {
+                    if (!(await isSupported())) return;
+                    const messaging = getMessaging(firebaseApp);
+                    onMessage(messaging, (payload) => {
+                        const title = payload?.notification?.title || payload?.data?.title || "Notification";
+                        const body = payload?.notification?.body || payload?.data?.body || "";
+                        const href = payload?.data?.href || "/";
+
+                        if (Notification.permission === "granted" && navigator.serviceWorker) {
+                            navigator.serviceWorker.getRegistration("/static/firebase-messaging-sw.js")
+                                .then((reg) => {
+                                    if (reg) {
+                                        reg.showNotification(title, { body, data: { href } });
+                                    }
+                                })
+                                .catch(() => {});
+                        }
+                    });
+                } catch (_) {}
+            }
+
+            async function updateAuthButtons() {
+                const isLoggedIn = await checkLoggedIn();
+                if (loginLockBtn) {
+                    loginLockBtn.style.display = isLoggedIn ? 'none' : 'inline-block';
+                }
+                if (logoutBtn) {
+                    logoutBtn.style.display = isLoggedIn ? 'inline-block' : 'none';
+                }
+            }
+
+            function openLoginModal() {
+                loginModal.classList.remove('is-hidden');
+                loginModal.classList.add('open');
+                loginModal.setAttribute('aria-hidden', 'false');
+                document.getElementById('popupUsername').focus();
+            }
+
+            function closeModal() {
+                loginModal.classList.add('is-hidden');
+                loginModal.classList.remove('open');
+                loginModal.setAttribute('aria-hidden', 'true');
+            }
+
+            if (loginLockBtn) {
+                loginLockBtn.addEventListener('click', openLoginModal);
+            }
+            if (logoutBtn) {
+                logoutBtn.addEventListener('click', async () => {
+                    try {
+                        await fetch('/auth/logout/', {
+                            method: 'POST',
+                            credentials: 'include'
+                        });
+                        try {
+                            localStorage.removeItem('authorized');
+                            localStorage.removeItem('swagger_cookie_token');
+                            localStorage.removeItem('swagger-ui.auth');
+                            sessionStorage.removeItem('authorized');
+                            sessionStorage.removeItem('swagger_cookie_token');
+                            sessionStorage.removeItem('swagger-ui.auth');
+                        } catch (_) {}
+                        await updateAuthButtons();
+                    } finally {
+                        window.location.reload();
+                    }
+                });
+            }
+
+            if (closeLoginModal) {
+                closeLoginModal.addEventListener('click', closeModal);
+            }
+
+            if (loginModal) {
+                loginModal.addEventListener('click', e => {
+                    if (e.target === loginModal) closeModal();
+                });
+            }
+
+            window.addEventListener('keydown', e => {
+                if (e.key === 'Escape' && loginModal.classList.contains('open')) {
+                    closeModal();
+                }
+            });
+
+            if (popupLoginForm) {
+                popupLoginForm.addEventListener('submit', async e => {
+                    e.preventDefault();
+
+                    popupLoginMsg.textContent = '';
+                    popupLoginMsg.classList.remove('error');
+
+                    const username = document.getElementById('popupUsername').value.trim();
+                    const password = document.getElementById('popupPassword').value;
+
+                    if (!username || !password) {
+                        popupLoginMsg.textContent = 'Please fill username and password.';
+                        popupLoginMsg.classList.add('error');
+                        return;
+                    }
+
+                    try {
+                        const res = await fetch('/auth/login', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                email: username,
+                                password
+                            }),
+                            credentials: 'include'
+                        });
+
+                        const data = await res.json().catch(() => ({}));
+
+                        if (!res.ok) {
+                            popupLoginMsg.textContent = data.detail || 'Login failed.';
+                            popupLoginMsg.classList.add('error');
+                            return;
+                        }
+
+                        popupLoginMsg.textContent = 'Login success.';
+                        await registerPushTokenAfterAuth();
+                        setTimeout(() => {
+                            closeModal();
+                            updateAuthButtons().finally(() => window.location.reload());
+                        }, 500);
+
+                    } catch (err) {
+                        popupLoginMsg.textContent = 'Network error. Try again.';
+                        popupLoginMsg.classList.add('error');
+                    }
+                });
+            }
+
+            function animate() {
+                if (!bgImage) return;
+
+                x += (lFollowX - x) * friction;
+                y += (lFollowY - y) * friction;
+
+                bgImage.style.transform = `translate(${x}px, ${y}px) scale(1.1)`;
+
+                requestAnimationFrame(animate);
+            }
+
+            function handleMove(clientX, clientY) {
+                const lMouseX = Math.max(-100, Math.min(100, window.innerWidth / 2 - clientX));
+                const lMouseY = Math.max(-100, Math.min(100, window.innerHeight / 2 - clientY));
+                lFollowX = (20 * lMouseX) / 100;
+                lFollowY = (10 * lMouseY) / 100;
+            }
+
+            window.addEventListener('mousemove', e => handleMove(e.clientX, e.clientY));
+            window.addEventListener('touchmove', e => {
+                if (e.touches.length > 0) {
+                    handleMove(e.touches[0].clientX, e.touches[0].clientY);
+                }
+            });
+
+            animate();
+            bindForegroundPushPreview();
+            updateAuthButtons().then(async () => {
+                const isLoggedIn = await checkLoggedIn();
+                if (isLoggedIn) {
+                    await registerPushTokenAfterAuth();
+                }
+            });
+        });
+        </script>
+
+
+</body>
+</html>

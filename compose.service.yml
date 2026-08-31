@@ -1,0 +1,29 @@
+services:
+  auth-service:
+    build:
+      context: ./auth-service
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+    env_file:
+      - ./auth-service/.env.example
+    environment:
+      SERVICE_SHORT_NAME: auth
+      REDIS_URL: redis://redis:6379/0
+      STORAGE_ENDPOINT_URL: http://minio:9000
+      STORAGE_PUBLIC_BASE_URL: http://localhost/media
+      STORAGE_ACCESS_KEY: minioadmin
+      STORAGE_SECRET_KEY: minioadmin123
+      STORAGE_REGION: us-east-1
+    depends_on:
+      auth-db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      minio-init:
+        condition: service_completed_successfully
+
+    volumes:
+      - ./auth-service:/app
+      - ./shared_utils:/app/shared_utils:ro
+    ports:
+      - "8001:8000"
+
