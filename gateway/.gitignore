@@ -1,0 +1,15 @@
+# Nginx logs & runtime files
+*.log
+access.log
+error.log
+
+# SSL certificates and private keys
+certs/
+*.pem
+*.crt
+*.key
+
+# Environment files
+.env
+.env.*
+!.env.example
