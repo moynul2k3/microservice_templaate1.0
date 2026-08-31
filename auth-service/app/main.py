@@ -1,3 +1,4 @@
+import utils.session
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
